@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шестигранный Сапёр</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        select, button {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        select {
+            background: white;
+            color: #333;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-size: 1.5em;
+        }
+
+        .board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            padding: 20px;
+            min-height: 500px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .hex-board {
+            position: relative;
+            margin: 0 auto;
+            min-width: 600px;
+            min-height: 600px;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hex-cell {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .hex-cell:hover:not(.opened):not(.flagged) {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .hex-cell svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hex-cell svg polygon.closed {
+            fill: #ffffff;
+            stroke: #cccccc;
+            stroke-width: 2;
+        }
+
+        .hex-cell:hover svg polygon.closed {
+            fill: #f5f5f5;
+        }
+
+        .hex-cell svg polygon.opened {
+            fill: #f0f0f0;
+            stroke: #999;
+            stroke-width: 1;
+        }
+
+        .hex-cell svg polygon.flagged {
+            fill: #ff6b6b;
+        }
+
+        .hex-cell svg polygon.mine {
+            fill: #ff0000;
+        }
+
+        .hex-cell svg polygon.exploded {
+            fill: #ff0000;
+            animation: explode 0.3s;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        .hex-text {
+            pointer-events: none;
+            font-size: 24px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        .hex-text.number-1 { fill: #0000ff; }
+        .hex-text.number-2 { fill: #008000; }
+        .hex-text.number-3 { fill: #ff0000; }
+        .hex-text.number-4 { fill: #000080; }
+        .hex-text.number-5 { fill: #800000; }
+        .hex-text.number-6 { fill: #008080; }
+        .hex-text.flag { fill: white; font-size: 20px; }
+        .hex-text.mine { fill: black; font-size: 30px; }
+
+        .game-over, .game-won {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .game-over h2 {
+            color: #ff0000;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .game-won h2 {
+            color: #00aa00;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🛡️ Шестигранный Сапёр</h1>
+        
+        <div style="text-align: center; margin-bottom: 20px; padding: 12px; background: #e8f4f8; border-radius: 8px; color: #2c5f7c; font-size: 1em; border: 2px solid #667eea;">
+            💡 <strong>Как играть:</strong> 
+            <span id="desktopHint">Левый клик - открыть | Правый клик - флаг 🚩</span>
+            <span id="mobileHint" style="display: none;">Нажмите - открыть | Долгое нажатие - флаг 🚩</span>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="sizeSelect">Размер поля:</label>
+                <select id="sizeSelect" onchange="newGame()">
+                    <option value="5">5</option>
+                    <option value="7">7</option>
+                    <option value="9" selected>9</option>
+                    <option value="11">11</option>
+                    <option value="13">13</option>
+                    <option value="15">15</option>
+                    <option value="17">17</option>
+                    <option value="19">19</option>
+                    <option value="21">21</option>
+                </select>
+            </div>
+            <button onclick="newGame()">Новая игра</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <span>Флаги:</span>
+                <span class="stat-value" id="flagsCount">0</span>
+            </div>
+            <div class="stat">
+                <span>Мин:</span>
+                <span class="stat-value" id="minesCount">0</span>
+            </div>
+            <div class="stat">
+                <span>Открыто:</span>
+                <span class="stat-value" id="openedCount">0</span>
+            </div>
+        </div>
+
+        <div class="board-container">
+            <div id="hexBoard" class="hex-board"></div>
+        </div>
+    </div>
+
+    <div id="gameOver" class="game-over hidden">
+        <h2>💥 Игра окончена!</h2>
+        <p>Вы подорвались на мине</p>
+        <button onclick="newGame()" style="margin-top: 20px;">Новая игра</button>
+    </div>
+
+    <div id="gameWon" class="game-won hidden">
+        <h2>🎉 Победа!</h2>
+        <p>Вы нашли все мины!</p>
+        <button onclick="newGame()" style="margin-top: 20px;">Новая игра</button>
+    </div>
+
+    <script>
+        let gameState = {
+            size: 9,
+            mines: [],
+            opened: new Set(),
+            flagged: new Set(),
+            board: [],
+            gameOver: false,
+            gameWon: false,
+            firstClick: true
+        };
+
+        // Константы для шестигранной сетки
+        const HEX_SIZE = 30;
+        const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
+        const HEX_HEIGHT = 2 * HEX_SIZE;
+
+        // Соседи гексагона в осевых координатах (q, r)
+        const HEX_NEIGHBORS = [
+            [1, 0], [1, -1], [0, -1],
+            [-1, 0], [-1, 1], [0, 1]
+        ];
+
+        function hexToPixel(q, r, size) {
+            const x = HEX_WIDTH * (q + r / 2);
+            const y = HEX_HEIGHT * r * 0.75;
+            return { x, y };
+        }
+
+        function generateHexagonalBoard(size) {
+            const board = [];
+            const hexes = [];
+            
+            // Генерируем шестигранное поле
+            // Размер определяет радиус шестигранника (количество колец от центра)
+            // Размер 5 = радиус 2, размер 7 = радиус 3 и т.д.
+            const radius = Math.floor(size / 2);
+            
+            for (let q = -radius; q <= radius; q++) {
+                const r1 = Math.max(-radius, -q - radius);
+                const r2 = Math.min(radius, -q + radius);
+                for (let r = r1; r <= r2; r++) {
+                    board.push({ q, r });
+                    hexes.push({ q, r });
+                }
+            }
+            
+            return { board, hexes };
+        }
+
+        function placeMines(board, count, excludeSet) {
+            const mines = new Set();
+            const available = board.filter(hex => 
+                !excludeSet.has(`${hex.q},${hex.r}`)
+            );
+            
+            // Перемешиваем массив доступных клеток
+            const shuffled = available.sort(() => Math.random() - 0.5);
+            
+            for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+                const hex = shuffled[i];
+                mines.add(`${hex.q},${hex.r}`);
+            }
+            
+            return mines;
+        }
+
+        function countAdjacentMines(q, r, mines) {
+            let count = 0;
+            for (const [dq, dr] of HEX_NEIGHBORS) {
+                const nq = q + dq;
+                const nr = r + dr;
+                if (mines.has(`${nq},${nr}`)) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        function getAdjacentHexes(q, r, board) {
+            const adjacent = [];
+            const boardMap = new Map(board.map(h => [`${h.q},${h.r}`, h]));
+            
+            for (const [dq, dr] of HEX_NEIGHBORS) {
+                const nq = q + dq;
+                const nr = r + dr;
+                const key = `${nq},${nr}`;
+                if (boardMap.has(key)) {
+                    adjacent.push({ q: nq, r: nr });
+                }
+            }
+            
+            return adjacent;
+        }
+
+        function openCell(q, r, board, mines, opened, flagged) {
+            const key = `${q},${r}`;
+            
+            if (opened.has(key) || flagged.has(key)) {
+                return;
+            }
+            
+            opened.add(key);
+            
+            if (mines.has(key)) {
+                return 'mine';
+            }
+            
+            const count = countAdjacentMines(q, r, mines);
+            
+            if (count === 0) {
+                // Автоматически открываем соседние пустые клетки
+                const adjacent = getAdjacentHexes(q, r, board);
+                for (const adj of adjacent) {
+                    openCell(adj.q, adj.r, board, mines, opened, flagged);
+                }
+            }
+            
+            return count;
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('hexBoard');
+            if (!boardEl) {
+                console.error('hexBoard element not found!');
+                return;
+            }
+            
+            boardEl.innerHTML = '';
+            
+            // Всегда генерируем новое поле, если board пустой
+            if (!gameState.board || gameState.board.length === 0) {
+                const { board: newBoard } = generateHexagonalBoard(gameState.size);
+                gameState.board = newBoard;
+                console.log('Generated new board with', newBoard.length, 'cells, size:', gameState.size);
+            }
+            
+            const board = gameState.board;
+            
+            // Проверяем, что у нас есть клетки для отрисовки
+            if (!board || board.length === 0) {
+                console.error('Board is empty! Size:', gameState.size);
+                return;
+            }
+            
+            console.log('Rendering board with', board.length, 'cells');
+            
+            // Подсчитываем границы для центрирования
+            let minQ = Infinity, maxQ = -Infinity;
+            let minR = Infinity, maxR = -Infinity;
+            
+            for (const hex of board) {
+                minQ = Math.min(minQ, hex.q);
+                maxQ = Math.max(maxQ, hex.q);
+                minR = Math.min(minR, hex.r);
+                maxR = Math.max(maxR, hex.r);
+            }
+            
+            const centerQ = (minQ + maxQ) / 2;
+            const centerR = (minR + maxR) / 2;
+            
+            // Вычисляем размеры поля для центрирования
+            const bounds = {
+                left: Infinity, right: -Infinity,
+                top: Infinity, bottom: -Infinity
+            };
+            
+            board.forEach(hex => {
+                const pos = hexToPixel(hex.q - centerQ, hex.r - centerR, HEX_SIZE);
+                bounds.left = Math.min(bounds.left, pos.x);
+                bounds.right = Math.max(bounds.right, pos.x);
+                bounds.top = Math.min(bounds.top, pos.y);
+                bounds.bottom = Math.max(bounds.bottom, pos.y);
+            });
+            
+            const boardWidth = bounds.right - bounds.left;
+            const boardHeight = bounds.bottom - bounds.top;
+            
+            // Получаем размеры контейнера и центрируем поле
+            const containerRect = boardEl.parentElement.getBoundingClientRect();
+            const containerWidth = containerRect.width || 800;
+            const containerHeight = containerRect.height || 600;
+            
+            // Центрируем поле в контейнере
+            const offsetX = (containerWidth / 2) - (bounds.left + bounds.right) / 2;
+            const offsetY = (containerHeight / 2) - (bounds.top + bounds.bottom) / 2;
+            
+            console.log('Board bounds:', bounds, 'Container:', containerWidth, containerHeight, 'Offset:', offsetX, offsetY);
+            
+            board.forEach((hex, index) => {
+                const pos = hexToPixel(hex.q - centerQ, hex.r - centerR, HEX_SIZE);
+                const cell = document.createElement('div');
+                cell.className = 'hex-cell';
+                cell.id = `hex-${hex.q}-${hex.r}`;
+                const left = pos.x + offsetX;
+                const top = pos.y + offsetY;
+                cell.style.left = `${left}px`;
+                cell.style.top = `${top}px`;
+                
+                const key = `${hex.q},${hex.r}`;
+                const isOpened = gameState.opened.has(key);
+                const isFlagged = gameState.flagged.has(key);
+                const isMine = gameState.mines.has(key);
+                
+                let svg = '';
+                if (isOpened) {
+                    if (isMine) {
+                        svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="exploded" fill="#ff0000"/><text x="50" y="50" class="hex-text mine">💣</text></svg>`;
+                    } else {
+                        const count = countAdjacentMines(hex.q, hex.r, gameState.mines);
+                        if (count > 0) {
+                            svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="opened" fill="#f0f0f0" stroke="#999" stroke-width="1"/><text x="50" y="50" class="hex-text number-${count}">${count}</text></svg>`;
+                        } else {
+                            svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="opened" fill="#f0f0f0" stroke="#999" stroke-width="1"/></svg>`;
+                        }
+                    }
+                } else if (isFlagged) {
+                    svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="flagged" fill="#ff6b6b"/><text x="50" y="50" class="hex-text flag">🚩</text></svg>`;
+                } else {
+                    svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="closed" fill="#ffffff" stroke="#cccccc" stroke-width="2"/></svg>`;
+                }
+                
+                cell.innerHTML = svg;
+                
+                // Обработка клика мыши
+                cell.addEventListener('click', (e) => {
+                    // Проверяем, не было ли это долгое нажатие
+                    if (!cell.dataset.longPress) {
+                        handleCellClick(e, hex.q, hex.r);
+                    }
+                    cell.dataset.longPress = 'false';
+                });
+                
+                // Обработка правого клика (десктоп)
+                cell.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    handleRightClick(hex.q, hex.r);
+                });
+                
+                // Обработка сенсорных событий для мобильных устройств
+                let touchStartTime = 0;
+                let touchTimer = null;
+                
+                cell.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    touchStartTime = Date.now();
+                    cell.dataset.longPress = 'false';
+                    
+                    touchTimer = setTimeout(() => {
+                        cell.dataset.longPress = 'true';
+                        handleRightClick(hex.q, hex.r);
+                        // Визуальная обратная связь
+                        cell.style.transform = 'scale(0.9)';
+                        setTimeout(() => {
+                            cell.style.transform = '';
+                        }, 200);
+                    }, 500); // 500ms для долгого нажатия
+                }, { passive: false });
+                
+                cell.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    clearTimeout(touchTimer);
+                    
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (touchDuration < 500 && !cell.dataset.longPress) {
+                        // Короткое нажатие - открыть клетку
+                        handleCellClick(e, hex.q, hex.r);
+                    }
+                    cell.dataset.longPress = 'false';
+                }, { passive: false });
+                
+                cell.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    clearTimeout(touchTimer);
+                    cell.dataset.longPress = 'false';
+                }, { passive: false });
+                
+                boardEl.appendChild(cell);
+            });
+            
+            updateStats();
+        }
+
+        function handleCellClick(e, q, r) {
+            if (gameState.gameOver || gameState.gameWon) return;
+            
+            const key = `${q},${r}`;
+            if (gameState.flagged.has(key)) return;
+            
+            // Первый клик - размещаем мины, избегая этой клетки и её соседей
+            if (gameState.firstClick) {
+                const { board } = generateHexagonalBoard(gameState.size);
+                gameState.board = board;
+                const totalCells = board.length;
+                const mineCount = Math.floor(totalCells * 0.15);
+                
+                // Исключаем первый клик и его соседей
+                const exclude = new Set([`${q},${r}`]);
+                const adjacent = getAdjacentHexes(q, r, board);
+                adjacent.forEach(adj => exclude.add(`${adj.q},${adj.r}`));
+                
+                gameState.mines = placeMines(board, mineCount, exclude);
+                gameState.minesCount = mineCount;
+                gameState.firstClick = false;
+            }
+            
+            const result = openCell(q, r, gameState.board, gameState.mines, gameState.opened, gameState.flagged);
+            
+            if (result === 'mine') {
+                gameState.gameOver = true;
+                revealAllMines();
+                renderBoard();
+                document.getElementById('gameOver').classList.remove('hidden');
+                return;
+            }
+            
+            checkWin();
+            renderBoard();
+        }
+
+        function handleRightClick(q, r) {
+            if (gameState.gameOver || gameState.gameWon) return;
+            
+            const key = `${q},${r}`;
+            if (gameState.opened.has(key)) return;
+            
+            if (gameState.flagged.has(key)) {
+                gameState.flagged.delete(key);
+            } else {
+                gameState.flagged.add(key);
+            }
+            
+            updateStats();
+            renderBoard();
+            checkWin();
+        }
+
+        function revealAllMines() {
+            gameState.mines.forEach(mineKey => {
+                const [q, r] = mineKey.split(',').map(Number);
+                if (!gameState.opened.has(mineKey)) {
+                    gameState.opened.add(mineKey);
+                }
+            });
+        }
+
+        function checkWin() {
+            if (gameState.gameOver || gameState.firstClick) return;
+            
+            const totalCells = gameState.board.length;
+            const openedCount = gameState.opened.size;
+            const mineCount = gameState.mines.size;
+            
+            // Победа если открыты все клетки кроме мин
+            if (openedCount === totalCells - mineCount) {
+                gameState.gameWon = true;
+                document.getElementById('gameWon').classList.remove('hidden');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('flagsCount').textContent = gameState.flagged.size;
+            document.getElementById('minesCount').textContent = gameState.minesCount;
+            document.getElementById('openedCount').textContent = gameState.opened.size;
+        }
+
+        function newGame() {
+            console.log('newGame() called');
+            
+            const sizeSelect = document.getElementById('sizeSelect');
+            if (!sizeSelect) {
+                console.error('sizeSelect element not found!');
+                return;
+            }
+            
+            const size = parseInt(sizeSelect.value);
+            if (isNaN(size)) {
+                console.error('Invalid size value:', sizeSelect.value);
+                return;
+            }
+            
+            console.log('Starting new game with size:', size);
+            
+            // Полностью сбрасываем состояние игры
+            gameState = {
+                size: size,
+                mines: new Set(),
+                opened: new Set(),
+                flagged: new Set(),
+                board: [],  // Пустое поле - будет сгенерировано в renderBoard
+                gameOver: false,
+                gameWon: false,
+                firstClick: true,
+                minesCount: 0
+            };
+            
+            // Скрываем модальные окна
+            const gameOverEl = document.getElementById('gameOver');
+            const gameWonEl = document.getElementById('gameWon');
+            if (gameOverEl) gameOverEl.classList.add('hidden');
+            if (gameWonEl) gameWonEl.classList.add('hidden');
+            
+            // Очищаем статистику
+            updateStats();
+            
+            // Рендерим новое поле
+            renderBoard();
+        }
+
+        // Определение мобильного устройства и показ соответствующей подсказки
+        function updateHintForDevice() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                          || (window.innerWidth <= 768);
+            
+            const desktopHint = document.getElementById('desktopHint');
+            const mobileHint = document.getElementById('mobileHint');
+            
+            if (desktopHint && mobileHint) {
+                if (isMobile) {
+                    desktopHint.style.display = 'none';
+                    mobileHint.style.display = 'inline';
+                } else {
+                    desktopHint.style.display = 'inline';
+                    mobileHint.style.display = 'none';
+                }
+            }
+        }
+
+        // Инициализация игры
+        document.addEventListener('DOMContentLoaded', () => {
+            updateHintForDevice();
+            window.addEventListener('resize', updateHintForDevice);
+            newGame();
+        });
+    </script>
+</body>
+</html>
