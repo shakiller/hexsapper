@@ -149,18 +149,18 @@
         }
 
         .hex-cell svg polygon.closed {
-            fill: #ffffff;
-            stroke: #cccccc;
-            stroke-width: 2;
+            fill: #d0d8e0;
+            stroke: #7a8a9a;
+            stroke-width: 3;
         }
 
         .hex-cell:hover svg polygon.closed {
-            fill: #f5f5f5;
+            fill: #c0d0e0;
         }
 
         .hex-cell svg polygon.opened {
-            fill: #f0f0f0;
-            stroke: #999;
+            fill: #ffffff;
+            stroke: #bbb;
             stroke-width: 1;
         }
 
@@ -517,15 +517,15 @@
                     } else {
                         const count = countAdjacentMines(hex.q, hex.r, gameState.mines);
                         if (count > 0) {
-                            svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="opened" fill="#f0f0f0" stroke="#999" stroke-width="1"/><text x="50" y="50" class="hex-text number-${count}">${count}</text></svg>`;
+                            svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="opened" fill="#ffffff" stroke="#bbb" stroke-width="1"/><text x="50" y="50" class="hex-text number-${count}">${count}</text></svg>`;
                         } else {
-                            svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="opened" fill="#f0f0f0" stroke="#999" stroke-width="1"/></svg>`;
+                            svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="opened" fill="#ffffff" stroke="#bbb" stroke-width="1"/></svg>`;
                         }
                     }
                 } else if (isFlagged) {
                     svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="flagged" fill="#ff6b6b"/><text x="50" y="50" class="hex-text flag">🚩</text></svg>`;
                 } else {
-                    svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="closed" fill="#ffffff" stroke="#cccccc" stroke-width="2"/></svg>`;
+                    svg = `<svg viewBox="0 0 100 100"><polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="closed" fill="#d0d8e0" stroke="#7a8a9a" stroke-width="3"/></svg>`;
                 }
                 
                 cell.innerHTML = svg;
