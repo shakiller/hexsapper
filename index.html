@@ -112,21 +112,22 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: auto;
+            overflow: hidden;
             padding: 20px;
-            min-height: 500px;
+            width: 100%;
+            height: 60vh;
+            min-height: 400px;
+            max-height: 800px;
             background: #f5f5f5;
             border-radius: 10px;
             margin: 20px 0;
         }
 
         .hex-board {
-            position: relative;
-            margin: 0 auto;
-            min-width: 600px;
-            min-height: 600px;
-            width: 100%;
-            height: 100%;
+            position: absolute;
+        
+            
+            transform-origin: center center;
         }
 
         .hex-cell {
@@ -184,7 +185,7 @@
 
         .hex-text {
             pointer-events: none;
-            font-size: 24px;
+            font-size: 50px;
             font-weight: bold;
             text-anchor: middle;
             dominant-baseline: central;
@@ -301,10 +302,8 @@
             firstClick: true
         };
 
-        // Константы для шестигранной сетки
-        const HEX_SIZE = 30;
-        const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-        const HEX_HEIGHT = 2 * HEX_SIZE;
+        // Базовый размер для шестигранной сетки (будет масштабироваться)
+        const BASE_HEX_SIZE = 30;
 
         // Соседи гексагона в осевых координатах (q, r)
         const HEX_NEIGHBORS = [
@@ -312,9 +311,11 @@
             [-1, 0], [-1, 1], [0, 1]
         ];
 
-        function hexToPixel(q, r, size) {
-            const x = HEX_WIDTH * (q + r / 2);
-            const y = HEX_HEIGHT * r * 0.75;
+        function hexToPixel(q, r, hexSize) {
+            const hexWidth = Math.sqrt(3) * hexSize;
+            const hexHeight = 2 * hexSize;
+            const x = hexWidth * (q + r / 2);
+            const y = hexHeight * r * 0.75;
             return { x, y };
         }
 
@@ -450,14 +451,20 @@
             const centerQ = (minQ + maxQ) / 2;
             const centerR = (minR + maxR) / 2;
             
-            // Вычисляем размеры поля для центрирования
+            // Получаем размеры контейнера
+            const containerRect = boardEl.parentElement.getBoundingClientRect();
+            const containerWidth = containerRect.width - 40; // Вычитаем padding
+            const containerHeight = containerRect.height - 40;
+            
+            // Вычисляем границы поля с базовым размером
+            // После вычитания centerQ/centerR, центр поля должен быть примерно в (0,0)
             const bounds = {
                 left: Infinity, right: -Infinity,
                 top: Infinity, bottom: -Infinity
             };
             
             board.forEach(hex => {
-                const pos = hexToPixel(hex.q - centerQ, hex.r - centerR, HEX_SIZE);
+                const pos = hexToPixel(hex.q - centerQ, hex.r - centerR, BASE_HEX_SIZE);
                 bounds.left = Math.min(bounds.left, pos.x);
                 bounds.right = Math.max(bounds.right, pos.x);
                 bounds.top = Math.min(bounds.top, pos.y);
@@ -467,26 +474,36 @@
             const boardWidth = bounds.right - bounds.left;
             const boardHeight = bounds.bottom - bounds.top;
             
-            // Получаем размеры контейнера и центрируем поле
-            const containerRect = boardEl.parentElement.getBoundingClientRect();
-            const containerWidth = containerRect.width || 800;
-            const containerHeight = containerRect.height || 600;
+            // Центр поля в его координатах
+            const boardCenterX = (bounds.left + bounds.right) / 2;
+            const boardCenterY = (bounds.top + bounds.bottom) / 2;
             
-            // Центрируем поле в контейнере
-            const offsetX = (containerWidth / 2) - (bounds.left + bounds.right) / 2;
-            const offsetY = (containerHeight / 2) - (bounds.top + bounds.bottom) / 2;
+            // Вычисляем масштаб, чтобы поле помещалось в контейнер с запасом
+            const padding = 20;
+            const scaleX = (containerWidth - padding * 2) / boardWidth;
+            const scaleY = (containerHeight - padding * 2) / boardHeight;
+            const scale = Math.min(scaleX, scaleY, 1.5); // Ограничиваем максимальный масштаб
             
-            console.log('Board bounds:', bounds, 'Container:', containerWidth, containerHeight, 'Offset:', offsetX, offsetY);
+            // Смещаем все координаты так, чтобы центр поля был в (0, 0)
+            const offsetX = -boardCenterX;
+            const offsetY = -boardCenterY;
+            
+            // Позиционируем контейнер поля (значения получены экспериментально)
+            // left и top задаются в CSS, здесь только transform
+            boardEl.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            boardEl.style.transformOrigin = 'center center';
             
             board.forEach((hex, index) => {
-                const pos = hexToPixel(hex.q - centerQ, hex.r - centerR, HEX_SIZE);
+                const pos = hexToPixel(hex.q - centerQ, hex.r - centerR, BASE_HEX_SIZE);
                 const cell = document.createElement('div');
                 cell.className = 'hex-cell';
                 cell.id = `hex-${hex.q}-${hex.r}`;
-                const left = pos.x + offsetX;
-                const top = pos.y + offsetY;
-                cell.style.left = `${left}px`;
-                cell.style.top = `${top}px`;
+                // Позиции относительно центра поля (который теперь в (0,0))
+                // Смещаем координаты на offset, чтобы центр поля был в (0,0)
+                // И смещаем на половину размера клетки для центрирования клетки
+                const cellHalfSize = BASE_HEX_SIZE;
+                cell.style.left = `${pos.x + offsetX - cellHalfSize}px`;
+                cell.style.top = `${pos.y + offsetY - cellHalfSize}px`;
                 
                 const key = `${hex.q},${hex.r}`;
                 const isOpened = gameState.opened.has(key);
@@ -717,10 +734,22 @@
             }
         }
 
+        // Функция для перерисовки при изменении размера окна
+        let resizeTimer = null;
+        function handleResize() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (gameState.board && gameState.board.length > 0) {
+                    renderBoard();
+                }
+                updateHintForDevice();
+            }, 250); // Дебаунс для оптимизации
+        }
+
         // Инициализация игры
         document.addEventListener('DOMContentLoaded', () => {
             updateHintForDevice();
-            window.addEventListener('resize', updateHintForDevice);
+            window.addEventListener('resize', handleResize);
             newGame();
         });
     </script>
