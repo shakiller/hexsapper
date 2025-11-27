@@ -659,8 +659,36 @@
             const openedCount = gameState.opened.size;
             const mineCount = gameState.mines.size;
             
-            // Победа если открыты все клетки кроме мин
-            if (openedCount === totalCells - mineCount) {
+            // Проверяем, что количество мин установлено корректно
+            if (mineCount === 0 || mineCount !== gameState.minesCount) {
+                return; // Игра еще не началась или мины не размещены
+            }
+            
+            // Проверяем, что НИ ОДНА мина не открыта
+            let hasOpenedMine = false;
+            for (const openedKey of gameState.opened) {
+                if (gameState.mines.has(openedKey)) {
+                    hasOpenedMine = true;
+                    break;
+                }
+            }
+            
+            if (hasOpenedMine) {
+                return; // Открыта мина - это поражение, не победа
+            }
+            
+            // Подсчитываем количество открытых клеток БЕЗ мин
+            let openedNonMines = 0;
+            for (const openedKey of gameState.opened) {
+                if (!gameState.mines.has(openedKey)) {
+                    openedNonMines++;
+                }
+            }
+            
+            // Победа только если открыты ВСЕ клетки БЕЗ мин
+            const totalNonMines = totalCells - mineCount;
+            
+            if (openedNonMines === totalNonMines) {
                 gameState.gameWon = true;
                 document.getElementById('gameWon').classList.remove('hidden');
             }
