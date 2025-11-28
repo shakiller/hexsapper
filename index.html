@@ -595,6 +595,48 @@
             const key = `${q},${r}`;
             if (gameState.flagged.has(key)) return;
             
+            // Проверяем, если кликнута уже открытая клетка с числом
+            if (gameState.opened.has(key)) {
+                const count = countAdjacentMines(q, r, gameState.mines);
+                if (count > 0) {
+                    // Подсчитываем количество соседних клеток с флагами
+                    const adjacent = getAdjacentHexes(q, r, gameState.board);
+                    let flaggedCount = 0;
+                    for (const adj of adjacent) {
+                        const adjKey = `${adj.q},${adj.r}`;
+                        if (gameState.flagged.has(adjKey)) {
+                            flaggedCount++;
+                        }
+                    }
+                    
+                    // Если количество флагов равно числу на клетке, открываем все соседние кроме помеченных флагом
+                    if (flaggedCount === count) {
+                        let openedAny = false;
+                        for (const adj of adjacent) {
+                            const adjKey = `${adj.q},${adj.r}`;
+                            if (!gameState.flagged.has(adjKey) && !gameState.opened.has(adjKey)) {
+                                const result = openCell(adj.q, adj.r, gameState.board, gameState.mines, gameState.opened, gameState.flagged);
+                                if (result === 'mine') {
+                                    gameState.gameOver = true;
+                                    revealAllMines();
+                                    renderBoard();
+                                    document.getElementById('gameOver').classList.remove('hidden');
+                                    return;
+                                }
+                                openedAny = true;
+                            }
+                        }
+                        
+                        if (openedAny) {
+                            checkWin();
+                            renderBoard();
+                        }
+                        return;
+                    }
+                }
+                return; // Клетка уже открыта и не подходит для быстрого открытия
+            }
+            
             // Первый клик - размещаем мины, избегая этой клетки и её соседей
             if (gameState.firstClick) {
                 const { board } = generateHexagonalBoard(gameState.size);
@@ -689,8 +731,20 @@
             const totalNonMines = totalCells - mineCount;
             
             if (openedNonMines === totalNonMines) {
-                gameState.gameWon = true;
-                document.getElementById('gameWon').classList.remove('hidden');
+                // Дополнительная проверка: все мины должны быть помечены флагами
+                let allMinesFlagged = true;
+                for (const mineKey of gameState.mines) {
+                    if (!gameState.flagged.has(mineKey)) {
+                        allMinesFlagged = false;
+                        break;
+                    }
+                }
+                
+                // Победа только если все мины помечены флагами
+                if (allMinesFlagged && gameState.flagged.size === mineCount) {
+                    gameState.gameWon = true;
+                    document.getElementById('gameWon').classList.remove('hidden');
+                }
             }
         }
 
